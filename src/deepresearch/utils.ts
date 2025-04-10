@@ -151,9 +151,9 @@ export async function saveResearchReport(
       await writable.write(htmlDocument);
       await writable.close();
 
-      console.log(`Research report saved as ${filename}`);
+      console.log(`\x1b[32m💾 Research report saved as ${filename}\x1b[0m`);
     } catch (error) {
-      console.error("Error saving file:", error);
+      console.error("\x1b[41m❌ Error saving file:\x1b[0m", error);
       throw error;
     }
   } else {

@@ -48,7 +48,7 @@ export class DeepResearchPipeline {
       return queries.slice(0, this.researchConfig.maxQueries);
     }
 
-    console.log(`\n\nInitial queries: ${queries}`);
+    console.log(`\n\n\x1b[36m🔍 Initial queries: ${queries}\x1b[0m`);
 
     if (queries.length === 0) {
       console.error("ERROR: No initial queries generated");
@@ -73,7 +73,7 @@ export class DeepResearchPipeline {
       ],
     });
 
-    console.log(`Generated plan: ${plan.text}`);
+    console.log(`\x1b[35m📋 Generated plan: ${plan.text}\x1b[0m`);
 
     const parsedPlan = await generateObject({
       model: togetheraiClient(this.modelConfig.jsonModel),
@@ -91,7 +91,7 @@ export class DeepResearchPipeline {
    * Perform a single web search
    */
   private async webSearch(query: string): Promise<SearchResults> {
-    console.log(`Perform web search with query: ${query}`);
+    console.log(`\x1b[34m🔎 Perform web search with query: ${query}\x1b[0m`);
 
     const searchResults = await searchOnExa({
       query,
@@ -99,7 +99,7 @@ export class DeepResearchPipeline {
     });
 
     console.log(
-      `Web Search Responded with ${searchResults.results.length} results (Web Search returning None will be ignored for summarization)`
+      `\x1b[32m📊 Web Search Responded with ${searchResults.results.length} results (Web Search returning None will be ignored for summarization)\x1b[0m`
     );
 
     return new SearchResults(searchResults.results);
@@ -157,7 +157,7 @@ export class DeepResearchPipeline {
 
       // Exit if research is complete
       if (additionalQueries.length === 0) {
-        console.log("No need for additional research");
+        console.log("\x1b[33m✅ No need for additional research\x1b[0m");
         break;
       }
 
@@ -170,11 +170,15 @@ export class DeepResearchPipeline {
         );
       }
 
-      console.log("================================================\n\n");
       console.log(
-        `Additional queries from evaluation parser: ${queriesToUse}\n\n`
+        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
       );
-      console.log("================================================\n\n");
+      console.log(
+        `\x1b[36m📋 Additional queries from evaluation parser: ${queriesToUse}\n\n\x1b[0m`
+      );
+      console.log(
+        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+      );
 
       // Expand research with new queries
       const newResults = await this.performSearch(queriesToUse);
@@ -214,8 +218,10 @@ export class DeepResearchPipeline {
       ],
     });
 
-    console.log("================================================\n\n");
-    console.log(`Evaluation:\n\n ${evaluation.text}`);
+    console.log(
+      "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+    );
+    console.log(`\x1b[36m📝 Evaluation:\n\n ${evaluation.text}\x1b[0m`);
 
     const parsedEvaluation = await generateObject({
       model: togetheraiClient(this.modelConfig.jsonModel),

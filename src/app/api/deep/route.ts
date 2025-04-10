@@ -7,7 +7,7 @@ export async function GET() {
 
     const topic = "Latest news on Trump tariffs?";
     const answer = await pipeline.runResearch(topic);
-    console.log(answer);
+    console.log(`\x1b[35m📡 Research Answer:\n\n${answer}\x1b[0m`);
 
     const data = {
       message: "Hello from the API",
@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
     // Handle errors
-    console.error("Error in GET endpoint:", error);
+    console.error("\x1b[41m⚠️ Error in GET endpoint:\x1b[0m", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }
