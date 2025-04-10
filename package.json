@@ -9,7 +9,6 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@agentic/exa": "^7.6.3",
     "@ai-sdk/togetherai": "^0.2.8",
     "ai": "^4.3.4",
     "exa-js": "^1.5.13",
