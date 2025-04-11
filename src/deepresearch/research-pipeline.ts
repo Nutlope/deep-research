@@ -13,9 +13,6 @@ import {
 } from "ai";
 import { z } from "zod";
 import { saveResearchReport } from "./utils";
-import crypto from "crypto";
-import fs from "fs";
-import path from "path";
 
 /**
  * Deep Research Pipeline
@@ -28,12 +25,8 @@ export class DeepResearchPipeline {
   private researchConfig: typeof RESEARCH_CONFIG;
   private prompts: typeof PROMPTS;
   private currentSpending: number = 0;
-  private useCache: boolean = false;
-  private cacheDir: string | null = null;
-  private locksDir: string | null = null;
   private interactive: boolean = false;
   private userTimeout: number = 30.0;
-  private debugFilePath: string | null = null;
   private clarificationContext: string | null = null;
 
   private researchPlanSchema = z.object({
@@ -58,9 +51,6 @@ export class DeepResearchPipeline {
       maxCompletionTokens?: number;
       userTimeout?: number;
       interactive?: boolean;
-      debugFilePath?: string | null;
-      cacheDir?: string | null;
-      useCache?: boolean;
     } = {}
   ) {
     this.modelConfig = modelConfig;
@@ -81,27 +71,6 @@ export class DeepResearchPipeline {
     // Set other options
     this.userTimeout = options.userTimeout || 30.0;
     this.interactive = options.interactive || false;
-    this.debugFilePath = options.debugFilePath || null;
-    this.useCache = options.useCache || false;
-
-    // Set up cache if enabled
-    if (this.useCache) {
-      this.cacheDir =
-        options.cacheDir ||
-        path.join(
-          process.env.HOME || process.env.USERPROFILE || "",
-          ".open_deep_research_cache"
-        );
-      this.locksDir = path.join(this.cacheDir, ".locks");
-
-      // Create directories if they don't exist
-      if (!fs.existsSync(this.cacheDir)) {
-        fs.mkdirSync(this.cacheDir, { recursive: true });
-      }
-      if (!fs.existsSync(this.locksDir)) {
-        fs.mkdirSync(this.locksDir, { recursive: true });
-      }
-    }
   }
 
   /**
@@ -272,66 +241,6 @@ export class DeepResearchPipeline {
   }
 
   /**
-   * Get cache path for a query
-   */
-  private getCachePath(query: string): string {
-    const queryHash = crypto.createHash("md5").update(query).digest("hex");
-    return path.join(this.cacheDir!, `exa_${queryHash}.json`);
-  }
-
-  /**
-   * Get lock path for a cache file
-   */
-  private getLockPath(cachePath: string): string {
-    return `${cachePath}.lock`;
-  }
-
-  /**
-   * Save search results to cache
-   */
-  private saveToCache(query: string, results: SearchResults): void {
-    if (!this.useCache || !this.cacheDir) return;
-
-    const cachePath = this.getCachePath(query);
-    const lockPath = this.getLockPath(cachePath);
-
-    // Create lock file
-    fs.writeFileSync(lockPath, "");
-
-    try {
-      // Save results to cache
-      fs.writeFileSync(cachePath, JSON.stringify(results));
-    } finally {
-      // Remove lock file
-      if (fs.existsSync(lockPath)) {
-        fs.unlinkSync(lockPath);
-      }
-    }
-  }
-
-  /**
-   * Load search results from cache
-   */
-  private loadFromCache(query: string): SearchResults | null {
-    if (!this.useCache || !this.cacheDir) return null;
-
-    const cachePath = this.getCachePath(query);
-    const lockPath = this.getLockPath(cachePath);
-
-    // Check if cache exists and is not locked
-    if (fs.existsSync(cachePath) && !fs.existsSync(lockPath)) {
-      try {
-        const cacheData = JSON.parse(fs.readFileSync(cachePath, "utf8"));
-        return new SearchResults(cacheData.results);
-      } catch (e) {
-        console.warn(`Failed to load cache for query '${query}': ${e}`);
-      }
-    }
-
-    return null;
-  }
-
-  /**
    * Execute searches for all queries in parallel
    *
    * @param queries List of search queries
@@ -339,25 +248,8 @@ export class DeepResearchPipeline {
    */
   async performSearch(queries: string[]): Promise<SearchResults> {
     const tasks = queries.map(async (query) => {
-      // Try to load from cache first
-      if (this.useCache) {
-        const cachedResults = this.loadFromCache(query);
-        if (cachedResults) {
-          console.log(
-            `\x1b[32m📦 Using cached results for query: ${query}\x1b[0m`
-          );
-          return cachedResults;
-        }
-      }
-
-      // If not in cache, perform search
+      // Perform search
       const results = await this.webSearch(query);
-
-      // Save to cache
-      if (this.useCache) {
-        this.saveToCache(query, results);
-      }
-
       return results;
     });
 
@@ -696,17 +588,6 @@ export class DeepResearchPipeline {
     console.log(
       `\x1b[32m📊 Filtered results: ${filteredResults.results.length} sources kept\x1b[0m`
     );
-
-    // Debug output if enabled
-    if (this.debugFilePath) {
-      console.log(
-        `\x1b[36m📝 Debug mode enabled, outputting the web search results to ${this.debugFilePath}\x1b[0m`
-      );
-      fs.writeFileSync(
-        this.debugFilePath,
-        `${results}\n\n\n\n${filteredResults}`
-      );
-    }
 
     // Step 5: Generate research answer with feedback loop
     let answer = await this.generateResearchAnswer(
