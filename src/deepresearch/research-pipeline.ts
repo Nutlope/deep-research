@@ -212,11 +212,10 @@ export class DeepResearchPipeline {
       }
 
       // Create a task for summarization
-      const task = this._summarize_content_async(
-        result.content,
+      const task = this._summarize_content_async({
+        result,
         query,
-        this.prompts.rawContentSummarizerPrompt
-      );
+      });
 
       summarizationTasks.push(task);
       resultInfo.push(result);
@@ -247,27 +246,24 @@ export class DeepResearchPipeline {
   /**
    * Summarize content asynchronously using the LLM
    *
-   * @param rawContent The raw content to summarize
-   * @param query The search query
-   * @param prompt The prompt to use for summarization
+   * @param props The props object containing searchResult and query
    * @returns The summarized content
    */
-  private async _summarize_content_async(
-    rawContent: string,
-    query: string,
-    prompt: string
-  ): Promise<string> {
+  private async _summarize_content_async(props: {
+    result: SearchResult;
+    query: string;
+  }): Promise<string> {
     console.log(
-      `\x1b[36m📝 Summarizing content asynchronously using the LLM\x1b[0m`
+      `\x1b[36m📝 Summarizing content from URL: ${props.result.link}\x1b[0m`
     );
 
     const result = await generateText({
       model: togetheraiClient(this.modelConfig.summaryModel),
       messages: [
-        { role: "system", content: prompt },
+        { role: "system", content: this.prompts.rawContentSummarizerPrompt },
         {
           role: "user",
-          content: `<Raw Content>${rawContent}</Raw Content>\n\n<Research Topic>${query}</Research Topic>`,
+          content: `<Raw Content>${props.result.content}</Raw Content>\n\n<Research Topic>${props.query}</Research Topic>`,
         },
       ],
     });
