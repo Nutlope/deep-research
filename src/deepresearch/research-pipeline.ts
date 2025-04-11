@@ -2,10 +2,15 @@
  * Deep Research Pipeline Implementation
  */
 
-import { SearchResults } from "./models";
+import { SearchResults, SearchResult } from "./models";
 import { MODEL_CONFIG, PROMPTS, RESEARCH_CONFIG } from "./config";
 import { togetheraiClient, searchOnExa } from "./apiClients";
-import { generateText, generateObject } from "ai";
+import {
+  generateText,
+  generateObject,
+  extractReasoningMiddleware,
+  wrapLanguageModel,
+} from "ai";
 import { z } from "zod";
 import { saveResearchReport } from "./utils";
 import crypto from "crypto";
@@ -28,7 +33,6 @@ export class DeepResearchPipeline {
   private locksDir: string | null = null;
   private interactive: boolean = false;
   private userTimeout: number = 30.0;
-  private shouldRemoveThinkingTags: boolean = false;
   private debugFilePath: string | null = null;
   private clarificationContext: string | null = null;
 
@@ -75,7 +79,6 @@ export class DeepResearchPipeline {
     }
 
     // Set other options
-    this.shouldRemoveThinkingTags = options.removeThinkingTags || false;
     this.userTimeout = options.userTimeout || 30.0;
     this.interactive = options.interactive || false;
     this.debugFilePath = options.debugFilePath || null;
@@ -197,8 +200,8 @@ export class DeepResearchPipeline {
    */
   private async processSearchResultsWithSummarization(
     query: string,
-    results: any[]
-  ): Promise<any[]> {
+    results: SearchResult[]
+  ): Promise<SearchResult[]> {
     // Create tasks for summarization
     const summarizationTasks = [];
     const resultInfo = [];
@@ -223,17 +226,19 @@ export class DeepResearchPipeline {
     const summarizedContents = await Promise.all(summarizationTasks);
 
     // Combine results with summarized content
-    const formattedResults = [];
+    const formattedResults: SearchResult[] = [];
     for (let i = 0; i < resultInfo.length; i++) {
       const result = resultInfo[i];
       const summarizedContent = summarizedContents[i];
 
-      formattedResults.push({
-        title: result.title || "",
-        link: result.link,
-        content: result.content,
-        filteredRawContent: summarizedContent,
-      });
+      formattedResults.push(
+        new SearchResult({
+          title: result.title || "",
+          link: result.link,
+          content: result.content,
+          filteredRawContent: summarizedContent,
+        })
+      );
     }
 
     return formattedResults;
@@ -653,16 +658,6 @@ export class DeepResearchPipeline {
   }
 
   /**
-   * Remove thinking tags from the answer
-   *
-   * @param answer The answer to process
-   * @returns The processed answer
-   */
-  private removeThinkingTags(answer: string): string {
-    return answer.replace(/<think>[\s\S]*?<\/think>/g, "");
-  }
-
-  /**
    * Run the complete research pipeline
    *
    * @param topic The research topic
@@ -701,6 +696,7 @@ export class DeepResearchPipeline {
       clarifiedTopic,
       processedResults
     );
+
     console.log(
       `\x1b[32m📊 Filtered results: ${filteredResults.results.length} sources kept\x1b[0m`
     );
@@ -770,8 +766,13 @@ export class DeepResearchPipeline {
   ): Promise<string> {
     const formattedResults = results.toString();
 
-    const answer = await generateText({
+    const enhancedModel = wrapLanguageModel({
       model: togetheraiClient(this.modelConfig.answerModel),
+      middleware: extractReasoningMiddleware({ tagName: "think" }),
+    });
+
+    const answer = await generateText({
+      model: enhancedModel,
       messages: [
         { role: "system", content: this.prompts.answerPrompt },
         {
@@ -781,14 +782,7 @@ export class DeepResearchPipeline {
       ],
     });
 
-    let processedAnswer = answer.text;
-
-    // Remove thinking tags if enabled
-    if (this.shouldRemoveThinkingTags) {
-      processedAnswer = this.removeThinkingTags(processedAnswer);
-    }
-
-    return processedAnswer.trim();
+    return answer.text.trim();
   }
 
   /**
