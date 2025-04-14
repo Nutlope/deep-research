@@ -3,38 +3,15 @@ import Exa from "exa-js";
 
 import { SearchResult } from "./models";
 import { unstable_cache } from "next/cache";
-import { tavily } from "@tavily/core";
 
 export const togetheraiClient = createTogetherAI({
   apiKey: process.env.TOGETHER_AI_API_KEY ?? "",
 });
 
 const exa = new Exa(process.env.EXA_API_KEY);
-const tvly = tavily({ apiKey: process.env.TAVILY_API_KEY });
 
 type SearchResults = {
   results: SearchResult[];
-};
-
-export const searchOnTavily = async ({
-  query,
-  includeRawContent = false,
-}: {
-  query: string;
-  includeRawContent?: boolean;
-}): Promise<SearchResults> => {
-  // Step 2. Executing a simple search query
-  const response = await tvly.search(query, {});
-
-  return {
-    results: response.results.map((result) => {
-      return new SearchResult({
-        title: result.title,
-        link: result.url,
-        content: result.content,
-      });
-    }),
-  };
 };
 
 export const searchOnExa = async ({
