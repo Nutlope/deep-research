@@ -51,7 +51,7 @@ export class SearchResult {
   shortStr(): string {
     return `Title: ${this.title}\nLink: ${
       this.link
-    }\nRaw Content: ${this.content.substring(0, 1000)}`;
+    }\nContent: ${this.content.substring(0, 1000)}`;
   }
 }
 
