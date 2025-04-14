@@ -2,7 +2,12 @@
  * Deep Research Pipeline Implementation
  */
 
-import { SearchResults, SearchResult } from "./models";
+import {
+  SearchResults,
+  SearchResult,
+  FilteredResultsData,
+  IterativeResearchResult,
+} from "./models";
 import { MODEL_CONFIG, PROMPTS, RESEARCH_CONFIG } from "./config";
 import { togetheraiClient, searchOnExa } from "./apiClients";
 import {
@@ -12,7 +17,6 @@ import {
   wrapLanguageModel,
 } from "ai";
 import { z } from "zod";
-import { saveResearchReport } from "./utils";
 
 /**
  * Deep Research Pipeline
@@ -25,9 +29,6 @@ export class DeepResearchPipeline {
   private researchConfig: typeof RESEARCH_CONFIG;
   private prompts: typeof PROMPTS;
   private currentSpending: number = 0;
-  private interactive: boolean = false;
-  private userTimeout: number = 30.0;
-  private clarificationContext: string | null = null;
 
   private researchPlanSchema = z.object({
     queries: z
@@ -45,12 +46,9 @@ export class DeepResearchPipeline {
     researchConfig = RESEARCH_CONFIG,
     prompts = PROMPTS,
     options: {
-      removeThinkingTags?: boolean;
       maxQueries?: number;
       maxSources?: number;
       maxCompletionTokens?: number;
-      userTimeout?: number;
-      interactive?: boolean;
     } = {}
   ) {
     this.modelConfig = modelConfig;
@@ -67,10 +65,6 @@ export class DeepResearchPipeline {
     if (options.maxCompletionTokens !== undefined) {
       this.researchConfig.maxTokens = options.maxCompletionTokens;
     }
-
-    // Set other options
-    this.userTimeout = options.userTimeout || 30.0;
-    this.interactive = options.interactive || false;
   }
 
   /**
@@ -79,7 +73,11 @@ export class DeepResearchPipeline {
    * @param topic The research topic
    * @returns List of search queries
    */
-  async generateInitialQueries(topic: string): Promise<string[]> {
+  async generateInitialQueries({
+    topic,
+  }: {
+    topic: string;
+  }): Promise<string[]> {
     const queries = await this.generateResearchQueries(topic);
 
     // Add the original topic as the first query (like in the Python version)
@@ -144,7 +142,6 @@ export class DeepResearchPipeline {
 
     const searchResults = await searchOnExa({
       query,
-      includeRawContent: true,
     });
 
     console.log(
@@ -204,7 +201,6 @@ export class DeepResearchPipeline {
           title: result.title || "",
           link: result.link,
           content: result.content,
-          filteredRawContent: summarizedContent,
         })
       );
     }
@@ -246,7 +242,11 @@ export class DeepResearchPipeline {
    * @param queries List of search queries
    * @returns Combined search results
    */
-  async performSearch(queries: string[]): Promise<SearchResults> {
+  async performSearch({
+    queries,
+  }: {
+    queries: string[];
+  }): Promise<SearchResults> {
     const tasks = queries.map(async (query) => {
       // Perform search
       const results = await this.webSearch(query);
@@ -266,63 +266,6 @@ export class DeepResearchPipeline {
     );
 
     return combinedResultsDedup;
-  }
-
-  /**
-   * Conduct iterative research within budget to refine results
-   *
-   * @param topic The research topic
-   * @param initialResults Results from initial search
-   * @param allQueries List of all queries used so far
-   * @returns Tuple of (final results, all queries used)
-   */
-  async conductIterativeResearch(
-    topic: string,
-    initialResults: SearchResults,
-    allQueries: string[]
-  ): Promise<[SearchResults, string[]]> {
-    let results = initialResults;
-
-    for (let i = 0; i < this.researchConfig.budget; i++) {
-      // Evaluate if more research is needed
-      const additionalQueries = await this.evaluateResearchCompleteness(
-        topic,
-        results,
-        allQueries
-      );
-
-      // Exit if research is complete
-      if (additionalQueries.length === 0) {
-        console.log("\x1b[33m✅ No need for additional research\x1b[0m");
-        break;
-      }
-
-      // Limit the number of queries if needed
-      let queriesToUse = additionalQueries;
-      if (this.researchConfig.maxQueries > 0) {
-        queriesToUse = additionalQueries.slice(
-          0,
-          this.researchConfig.maxQueries
-        );
-      }
-
-      console.log(
-        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
-      );
-      console.log(
-        `\x1b[36m📋 Additional queries from evaluation parser: ${queriesToUse}\n\n\x1b[0m`
-      );
-      console.log(
-        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
-      );
-
-      // Expand research with new queries
-      const newResults = await this.performSearch(queriesToUse);
-      results = results.add(newResults);
-      allQueries.push(...queriesToUse);
-    }
-
-    return [results, allQueries];
   }
 
   /**
@@ -383,10 +326,13 @@ export class DeepResearchPipeline {
    * @param results Search results to process
    * @returns Filtered search results
    */
-  async processSearchResults(
-    topic: string,
-    results: SearchResults
-  ): Promise<SearchResults> {
+  async processSearchResults({
+    topic,
+    results,
+  }: {
+    topic: string;
+    results: SearchResults;
+  }): Promise<SearchResults> {
     // Deduplicate results
     results = results.dedup();
     console.log(
@@ -403,10 +349,13 @@ export class DeepResearchPipeline {
    * @param results Search results to filter
    * @returns Tuple of (filtered results, source list)
    */
-  private async filterResults(
-    topic: string,
-    results: SearchResults
-  ): Promise<[SearchResults, number[]]> {
+  private async filterResults({
+    topic,
+    results,
+  }: {
+    topic: string;
+    results: SearchResults;
+  }): Promise<FilteredResultsData> {
     const formattedResults = results.toString();
 
     const filterResponse = await generateText({
@@ -450,99 +399,74 @@ export class DeepResearchPipeline {
         .map((i) => results.results[i - 1])
     );
 
-    return [filteredResults, limitedSources];
+    return {
+      filteredResults,
+      sourceIndices: limitedSources,
+    };
   }
 
   /**
-   * Clarify the research topic through interactive conversation
+   * Conduct iterative research within budget to refine results
    *
-   * @param topic The research topic to clarify
-   * @returns The clarified topic
+   * @param topic The research topic
+   * @param initialResults Results from initial search
+   * @param allQueries List of all queries used so far
+   * @returns Tuple of (final results, all queries used)
    */
-  private async clarifyTopic(topic: string): Promise<string> {
-    console.log(`\x1b[36m🔍 Clarifying topic: ${topic}\x1b[0m`);
+  async conductIterativeResearch({
+    topic,
+    initialResults,
+    allQueries,
+  }: {
+    topic: string;
+    initialResults: SearchResults;
+    allQueries: string[];
+  }): Promise<IterativeResearchResult> {
+    let results = initialResults;
 
-    const clarification = await generateText({
-      model: togetheraiClient(this.modelConfig.planningModel),
-      messages: [
-        { role: "system", content: this.prompts.clarificationPrompt },
-        { role: "user", content: `Research Topic: ${topic}` },
-      ],
-    });
-
-    console.log(`\x1b[36m📝 Topic Clarification: ${clarification.text}\x1b[0m`);
-
-    // In a real implementation, this would prompt the user for input
-    // For now, we'll simulate it with a timeout
-    if (this.interactive) {
-      // Simulate user input with a timeout
-      const userInput = await this.getUserInputWithTimeout(
-        "\nPlease provide additional details or type 'continue' to proceed with the research: ",
-        this.userTimeout
+    for (let i = 0; i < this.researchConfig.budget; i++) {
+      // Evaluate if more research is needed
+      const additionalQueries = await this.evaluateResearchCompleteness(
+        topic,
+        results,
+        allQueries
       );
 
-      if (
-        userInput.toLowerCase() === "continue" ||
-        !userInput ||
-        userInput === ""
-      ) {
-        return this.clarificationContext
-          ? `${topic}\n\nContext: ${this.clarificationContext}`
-          : topic;
+      // Exit if research is complete
+      if (additionalQueries.length === 0) {
+        console.log("\x1b[33m✅ No need for additional research\x1b[0m");
+        break;
       }
 
-      // Store the clarification context
-      if (!this.clarificationContext) {
-        this.clarificationContext = userInput;
-      } else {
-        this.clarificationContext += `\n${userInput}`;
+      // Limit the number of queries if needed
+      let queriesToUse = additionalQueries;
+      if (this.researchConfig.maxQueries > 0) {
+        queriesToUse = additionalQueries.slice(
+          0,
+          this.researchConfig.maxQueries
+        );
       }
-
-      // Get follow-up clarification
-      const followUpClarification = await generateText({
-        model: togetheraiClient(this.modelConfig.planningModel),
-        messages: [
-          { role: "system", content: this.prompts.clarificationPrompt },
-          {
-            role: "user",
-            content: `Research Topic: ${topic}\nPrevious Context: ${this.clarificationContext}`,
-          },
-        ],
-      });
 
       console.log(
-        `\x1b[36m📝 Follow-up Clarification: ${followUpClarification.text}\x1b[0m`
+        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
       );
-      this.currentSpending += 1;
+      console.log(
+        `\x1b[36m📋 Additional queries from evaluation parser: ${queriesToUse}\n\n\x1b[0m`
+      );
+      console.log(
+        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+      );
 
-      // Recursively continue clarification
-      return this.clarifyTopic(topic);
+      // Expand research with new queries
+      const newResults = await this.performSearch({ queries: queriesToUse });
+      results = results.add(newResults);
+      allQueries.push(...queriesToUse);
     }
 
-    return topic;
-  }
-
-  /**
-   * Get user input with a timeout
-   *
-   * @param prompt The prompt to display to the user
-   * @param timeout The timeout in seconds
-   * @returns The user input or an empty string if timed out
-   */
-  private async getUserInputWithTimeout(
-    prompt: string,
-    timeout: number
-  ): Promise<string> {
-    // In a real implementation, this would use a proper input mechanism
-    // For now, we'll simulate it with a timeout
-    return new Promise((resolve) => {
-      console.log(prompt);
-
-      // Simulate user input after timeout
-      setTimeout(() => {
-        resolve("");
-      }, timeout * 1000);
-    });
+    return {
+      finalSearchResults: results,
+      queriesUsed: allQueries,
+    };
   }
 
   /**
@@ -552,80 +476,45 @@ export class DeepResearchPipeline {
    * @returns The research answer
    */
   async runResearch(topic: string): Promise<string> {
-    // Step 0: Clarify the research topic if in interactive mode
-    let clarifiedTopic = topic;
-    if (this.interactive) {
-      clarifiedTopic = await this.clarifyTopic(topic);
-    }
-
-    console.log(`\x1b[36m🔍 Researching topic: ${clarifiedTopic}\x1b[0m`);
+    console.log(`\x1b[36m🔍 Researching topic: ${topic}\x1b[0m`);
 
     // Step 1: Generate initial queries
-    const initialQueries = await this.generateInitialQueries(clarifiedTopic);
+    const initialQueries = await this.generateInitialQueries({ topic });
 
     // Step 2: Perform initial search
-    const initialResults = await this.performSearch(initialQueries);
+    const initialResults = await this.performSearch({
+      queries: initialQueries,
+    });
 
     // Step 3: Conduct iterative research
-    const [results, allQueries] = await this.conductIterativeResearch(
-      clarifiedTopic,
-      initialResults,
-      initialQueries
-    );
+    const { finalSearchResults, queriesUsed } =
+      await this.conductIterativeResearch({
+        topic,
+        initialResults,
+        allQueries: initialQueries,
+      });
 
     // Step 4: Process search results
-    const processedResults = await this.processSearchResults(
-      clarifiedTopic,
-      results
-    );
+    const processedResults = await this.processSearchResults({
+      topic,
+      results: finalSearchResults,
+    });
 
     // Step 4.5: Filter results based on relevance
-    const [filteredResults, sources] = await this.filterResults(
-      clarifiedTopic,
-      processedResults
-    );
+    const { filteredResults, sourceIndices } = await this.filterResults({
+      topic,
+      results: processedResults,
+    });
 
     console.log(
       `\x1b[32m📊 Filtered results: ${filteredResults.results.length} sources kept\x1b[0m`
     );
 
     // Step 5: Generate research answer with feedback loop
-    let answer = await this.generateResearchAnswer(
-      clarifiedTopic,
-      filteredResults
-    );
-
-    // Interactive feedback loop
-    if (this.interactive) {
-      while (this.currentSpending < this.researchConfig.budget) {
-        console.log(`\x1b[36m📝 Answer: ${answer}\x1b[0m`);
-
-        const userFeedback = await this.getUserInputWithTimeout(
-          "\nAre you satisfied with this answer? (yes/no) If no, please provide feedback: ",
-          this.userTimeout * 5
-        );
-
-        if (
-          userFeedback.toLowerCase() === "yes" ||
-          !userFeedback ||
-          userFeedback === ""
-        ) {
-          return answer;
-        }
-
-        // Regenerate answer with user feedback
-        clarifiedTopic = `${clarifiedTopic}\n\nReport:${answer}\n\nAdditional Feedback: ${userFeedback}`;
-        console.log(
-          `\x1b[36m🔄 Regenerating answer with feedback: ${userFeedback}\x1b[0m`
-        );
-        this.currentSpending += 1;
-
-        answer = await this.generateResearchAnswer(
-          clarifiedTopic,
-          filteredResults
-        );
-      }
-    }
+    let answer = await this.generateResearchAnswer({
+      topic,
+      results: filteredResults,
+    });
 
     return answer;
   }
@@ -637,10 +526,13 @@ export class DeepResearchPipeline {
    * @param results Filtered search results to use for answer generation
    * @returns Detailed research answer as a string
    */
-  private async generateResearchAnswer(
-    topic: string,
-    results: SearchResults
-  ): Promise<string> {
+  private async generateResearchAnswer({
+    topic,
+    results,
+  }: {
+    topic: string;
+    results: SearchResults;
+  }): Promise<string> {
     const formattedResults = results.toString();
 
     const enhancedModel = wrapLanguageModel({
@@ -660,15 +552,5 @@ export class DeepResearchPipeline {
     });
 
     return answer.text.trim();
-  }
-
-  /**
-   * Save the research report to a file
-   *
-   * @param report The research report
-   * @param filename The filename to save to
-   */
-  async saveReport(report: string, filename: string): Promise<void> {
-    await saveResearchReport(report, filename);
   }
 }

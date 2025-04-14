@@ -29,29 +29,20 @@ export class SearchResult {
   title: string;
   link: string;
   content: string;
-  filteredRawContent?: string;
 
-  constructor(params: {
-    title: string;
-    link: string;
-    content: string;
-    filteredRawContent?: string;
-  }) {
+  constructor(params: { title: string; link: string; content: string }) {
     this.title = params.title;
     this.link = params.link;
     this.content = params.content;
-    this.filteredRawContent = params.filteredRawContent;
   }
 
   /**
    * (For Report Generation and Completeness Evaluation) String representation with title, link and refined content.
    */
   toString(): string {
-    return this.filteredRawContent
-      ? `Title: ${this.title}\nLink: ${this.link}\nRefined Content: ${this.filteredRawContent}`
-      : `Title: ${this.title}\nLink: ${
-          this.link
-        }\nRaw Content: ${this.content.substring(0, 1000)}`;
+    return `Title: ${this.title}\nLink: ${
+      this.link
+    }\nContent: ${this.content.substring(0, 1000)}`;
   }
 
   /**
@@ -118,4 +109,20 @@ export class SearchResults {
 
     return new SearchResults(uniqueResults);
   }
+}
+
+/**
+ * Return type for iterative research results containing final search results and used queries.
+ */
+export interface IterativeResearchResult {
+  finalSearchResults: SearchResults;
+  queriesUsed: string[];
+}
+
+/**
+ * Return type for filtered results containing filtered search results and source indices.
+ */
+export interface FilteredResultsData {
+  filteredResults: SearchResults;
+  sourceIndices: number[];
 }
