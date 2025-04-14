@@ -78,10 +78,7 @@ export class DeepResearchPipeline {
   }: {
     topic: string;
   }): Promise<string[]> {
-    const queries = await this.generateResearchQueries(topic);
-
-    // Add the original topic as the first query (like in the Python version)
-    let allQueries = [topic, ...queries];
+    let allQueries = await this.generateResearchQueries(topic);
 
     if (this.researchConfig.maxQueries > 0) {
       allQueries = allQueries.slice(0, this.researchConfig.maxQueries);
@@ -104,24 +101,20 @@ export class DeepResearchPipeline {
    * @returns List of search queries
    */
   private async generateResearchQueries(topic: string): Promise<string[]> {
-    const plan = await generateText({
-      model: togetheraiClient(this.modelConfig.planningModel),
+    const parsedPlan = await generateObject({
+      model: togetheraiClient(this.modelConfig.jsonModel),
       messages: [
         { role: "system", content: this.prompts.planningPrompt },
         { role: "user", content: `Research Topic: ${topic}` },
       ],
-    });
-
-    console.log(`\x1b[35m📋 Generated plan: ${plan.text}\x1b[0m`);
-
-    const parsedPlan = await generateObject({
-      model: togetheraiClient(this.modelConfig.jsonModel),
-      messages: [
-        { role: "system", content: this.prompts.planParsingPrompt },
-        { role: "user", content: `Plan to be parsed: ${plan.text}` },
-      ],
       schema: this.researchPlanSchema,
     });
+
+    console.log(
+      `\x1b[35m📋 Research queries generated: \n - ${parsedPlan.object.queries.join(
+        "\n - "
+      )}\x1b[0m`
+    );
 
     return parsedPlan.object.queries;
   }
@@ -200,7 +193,7 @@ export class DeepResearchPipeline {
         new SearchResult({
           title: result.title || "",
           link: result.link,
-          content: result.content,
+          content: summarizedContent,
         })
       );
     }
@@ -374,7 +367,7 @@ export class DeepResearchPipeline {
     const parsedFilter = await generateObject({
       model: togetheraiClient(this.modelConfig.jsonModel),
       messages: [
-        { role: "system", content: this.prompts.filterParsingPrompt },
+        { role: "system", content: this.prompts.sourceParsingPrompt },
         {
           role: "user",
           content: `Filter response to be parsed: ${filterResponse.text}`,
