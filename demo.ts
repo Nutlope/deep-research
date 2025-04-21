@@ -1,4 +1,4 @@
-import { DeepResearchPipeline } from "@/deepresearch/research-pipeline";
+import { DeepResearchPipeline } from "./deepresearch/research-pipeline";
 
 (async () => {
   const pipeline = new DeepResearchPipeline();

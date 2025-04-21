@@ -5,7 +5,7 @@
   "license": "MIT",
   "description": "DeepResearch is a research assistant powered by Together.ai and exa.ai",
   "scripts": {
-    "dev": " esr src/demo.ts"
+    "dev": " esr demo.ts"
   },
   "dependencies": {
     "@ai-sdk/togetherai": "^0.2.10",
