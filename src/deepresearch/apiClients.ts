@@ -8,7 +8,7 @@ export const togetheraiClient = createTogetherAI({
   apiKey: process.env.TOGETHER_AI_API_KEY ?? "",
 });
 
-const exa = new Exa(process.env.EXA_API_KEY);
+const exa = new Exa(process.env.EXA_API_KEY ?? "");
 
 type SearchResults = {
   results: SearchResult[];
