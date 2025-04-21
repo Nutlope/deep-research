@@ -2,6 +2,8 @@
   "name": "deepresearch",
   "version": "0.1.0",
   "private": true,
+  "license": "MIT",
+  "description": "DeepResearch is a research assistant powered by Together.ai and exa.ai",
   "scripts": {
     "dev": " esr src/demo.ts"
   },
