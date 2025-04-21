@@ -1,8 +1,8 @@
 import { createTogetherAI } from "@ai-sdk/togetherai";
 import Exa from "exa-js";
+import "dotenv/config";
 
 import { SearchResult } from "./models";
-import { unstable_cache } from "next/cache";
 
 export const togetheraiClient = createTogetherAI({
   apiKey: process.env.TOGETHER_AI_API_KEY ?? "",
@@ -20,20 +20,11 @@ export const searchOnExa = async ({
   query: string;
 }): Promise<SearchResults> => {
   try {
-    const search = await unstable_cache(
-      async () => {
-        return await exa.searchAndContents(query, {
-          type: "keyword",
-          text: true,
-          numResults: 5,
-        });
-      },
-      [`exa-search-${query}`],
-      {
-        revalidate: 3600, // Cache for 1 hour
-        tags: ["exa-search"],
-      }
-    )();
+    const search = await exa.searchAndContents(query, {
+      type: "keyword",
+      text: true,
+      numResults: 5,
+    });
 
     const results = search.results.map((result) => {
       return new SearchResult({

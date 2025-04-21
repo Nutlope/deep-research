@@ -1,2 +1,3 @@
 onlyBuiltDependencies:
+  - esbuild
   - openai-zod-to-json-schema

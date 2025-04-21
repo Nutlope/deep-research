@@ -73,7 +73,7 @@ export class DeepResearchPipeline {
    * @param topic The research topic
    * @returns List of search queries
    */
-  async generateInitialQueries({
+  private async generateInitialQueries({
     topic,
   }: {
     topic: string;
@@ -235,7 +235,7 @@ export class DeepResearchPipeline {
    * @param queries List of search queries
    * @returns Combined search results
    */
-  async performSearch({
+  private async performSearch({
     queries,
   }: {
     queries: string[];
@@ -319,7 +319,7 @@ export class DeepResearchPipeline {
    * @param results Search results to process
    * @returns Filtered search results
    */
-  async processSearchResults({
+  private async processSearchResults({
     topic,
     results,
   }: {
@@ -406,7 +406,7 @@ export class DeepResearchPipeline {
    * @param allQueries List of all queries used so far
    * @returns Tuple of (final results, all queries used)
    */
-  async conductIterativeResearch({
+  private async conductIterativeResearch({
     topic,
     initialResults,
     allQueries,
