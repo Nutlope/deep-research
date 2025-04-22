@@ -44,9 +44,11 @@ As an LLM-based system, this tool may occasionally:
 
 **Always verify important information from generated reports with primary sources.**
 
-## Inspired from
+## Credits
 
-- [open_deep_research](- [open_deep_research](https://github.com/togethercomputer/open_deep_research))
+- Python version [Together Open Deep Research](https://github.com/togethercomputer/open_deep_research))
+- [Together.ai](https://togetherai.link/) for LLM models inference
+- [Exa web searches](https://exa.ai) to provide web searches
 
 ## License
 
