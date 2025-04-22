@@ -440,15 +440,15 @@ export class DeepResearchPipeline {
         );
       }
 
-      console.log(
-        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
-      );
+      // console.log(
+      //   "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+      // );
       console.log(
         `\x1b[36m📋 Additional queries from evaluation parser: ${queriesToUse}\n\n\x1b[0m`
       );
-      console.log(
-        "\x1b[43m🔄 ================================================\x1b[0m\n\n"
-      );
+      // console.log(
+      //   "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+      // );
 
       // Expand research with new queries
       const newResults = await this.performSearch({ queries: queriesToUse });
