@@ -1,6 +1,6 @@
 # Together Deep Research
 
-A TypeScript-based implementation of Deep Research for comprehensive topic exploration.
+A TypeScript-based implementation of Deep Research for comprehensive topic exploration. CLI and full-stack example app coming soon!
 
 ## Overview
 
@@ -8,7 +8,7 @@ Together Deep Research is a TypeScript-based implementation that delivers in-dep
 
 It enhances traditional web search by producing comprehensive, well-cited content that mimics the human research process - planning, searching, evaluating information, and iterating until completion.
 
-Based on the python implementation [open_deep_research](https://github.com/togethercomputer/open_deep_research)
+Based on the python implementation [open_deep_research](https://github.com/togethercomputer/open_deep_research) from Together AI.
 
 ## Features
 
