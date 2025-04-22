@@ -8,6 +8,8 @@ Together Deep Research is a TypeScript-based implementation that delivers in-dep
 
 It enhances traditional web search by producing comprehensive, well-cited content that mimics the human research process - planning, searching, evaluating information, and iterating until completion.
 
+Based on the python implementation [open_deep_research](https://github.com/togethercomputer/open_deep_research)
+
 ## Features
 
 - **Comprehensive Research Reports** - Generates long-form, well-cited content on complex topics
@@ -41,6 +43,10 @@ As an LLM-based system, this tool may occasionally:
 - Present outdated information
 
 **Always verify important information from generated reports with primary sources.**
+
+## Inspired from
+
+- [open_deep_research](- [open_deep_research](https://github.com/togethercomputer/open_deep_research))
 
 ## License
 
