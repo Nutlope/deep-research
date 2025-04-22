@@ -5,7 +5,7 @@ import "dotenv/config";
 import { SearchResult } from "./models";
 
 export const togetheraiClient = createTogetherAI({
-  apiKey: process.env.TOGETHER_AI_API_KEY ?? "",
+  apiKey: process.env.TOGETHER_API_KEY ?? "",
 });
 
 const exa = new Exa(process.env.EXA_API_KEY ?? "");
