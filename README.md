@@ -20,7 +20,7 @@ Based on the python implementation [open_deep_research](https://github.com/toget
 
 ## Usage
 
-Run the deep research workflow:
+Run `pnpm install` to install the dependencies, add a `.env` with your Together AI and Exa API keys, then `pnpm run dev` to run the `demo.ts` file that is seen below.
 
 ```typescript
 import { DeepResearchPipeline } from "./deepresearch/research-pipeline";
