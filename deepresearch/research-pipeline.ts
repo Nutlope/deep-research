@@ -292,10 +292,10 @@ export class DeepResearchPipeline {
       ],
     });
 
-    console.log(
-      "\x1b[43m🔄 ================================================\x1b[0m\n\n"
-    );
-    console.log(`\x1b[36m📝 Evaluation:\n\n ${evaluation.text}\x1b[0m`);
+    // console.log(
+    //   "\x1b[43m🔄 ================================================\x1b[0m\n\n"
+    // );
+    // console.log(`\x1b[36m📝 Evaluation:\n\n ${evaluation.text}\x1b[0m`);
 
     const parsedEvaluation = await generateObject({
       model: togetheraiClient(this.modelConfig.jsonModel),
@@ -362,7 +362,7 @@ export class DeepResearchPipeline {
       ],
     });
 
-    console.log(`\x1b[36m📝 Filter response: ${filterResponse.text}\x1b[0m`);
+    // console.log(`\x1b[36m📝 Filter response: ${filterResponse.text}\x1b[0m`);
 
     const parsedFilter = await generateObject({
       model: togetheraiClient(this.modelConfig.jsonModel),
