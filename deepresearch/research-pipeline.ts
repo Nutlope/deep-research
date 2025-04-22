@@ -542,6 +542,7 @@ export class DeepResearchPipeline {
           content: `Research Topic: ${topic}\n\nSearch Results:\n${formattedResults}`,
         },
       ],
+      maxTokens: this.researchConfig.maxTokens,
     });
 
     return answer.text.trim();
